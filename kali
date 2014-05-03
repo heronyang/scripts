@@ -1,0 +1,83 @@
+#!/bin/bash
+# Author: Heron
+# Description:
+# This is for VMWare Fusion(Mac). If you're try to deal
+# with other VMWare version, you should care about following things:
+#   -h <hostName>  (not needed for Fusion)
+#   -P <hostPort>  (not needed for Fusion)
+#   -u <userName in host OS>  (not needed for Fusion)
+#   -p <password in host OS>  (not needed for Fusion)
+
+HOSTTYPE="fusion"
+
+# the VMware script 
+VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
+# the VM guest to be started/stopped
+VMGUEST="/Volumes/Heron's BK2/VM/Debian 7 64-bit.vmwarevm"
+# IP address for VM
+IP="192.168.0.117"
+USERNAME="root"
+
+TIMEOUT=60
+
+function status () { 
+"$VMRUN" -T $HOSTTYPE list | grep "$VMGUEST" &>/dev/null
+if [[ "$?" -eq "0" ]]
+then
+    echo "VM $VMGUEST is up"
+    return 0
+else
+    echo "VM $VMGUEST is down"
+    return 1
+fi
+}
+
+function start () {
+"$VMRUN" -T $HOSTTYPE start "$VMGUEST"
+if [[ "$?" -eq "0" ]]
+then
+    echo "VM $VMGUEST is starting"
+    # let's try ssh into the machine
+    sleep 1
+    ssh_vm
+    return 0
+else
+    echo "$VMGUEST VM failed to start"
+    return 1
+fi
+}
+
+function stop () {
+"$VMRUN" -T $HOSTTYPE suspend "$VMGUEST"
+for i in `seq 1 $TIMEOUT`
+do
+    if status; then 
+        echo
+    else
+        echo "VM $VMGUEST stopped"
+        return 0
+    fi
+    sleep 1
+done
+"$VMRUN" -T $HOSTTYPE stop "$VMGUEST" soft
+}
+
+function ssh_vm() {
+ssh "$USERNAME"@"$IP"
+}
+
+function usage() {
+echo "stop, start, status"
+}
+
+if  [[ $1 = "start" ]]; then
+    start
+elif [[ $1 = "stop" ]]; then
+    stop
+elif [[ $1 = "status" ]]; then
+    status
+elif [[ $1 = "ssh" ]]; then
+    ssh_vm
+else
+    usage
+fi
